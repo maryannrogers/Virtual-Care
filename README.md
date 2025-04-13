@@ -12,7 +12,7 @@ This repository contains SAS code used in my MSc thesis project analyzing prescr
 ## Repository Structure
 
 - `01_clean_data.sas`: Cleaning steps and variable creation
-- `03_analytic_models.sas`: Propensity score matching and outcome modeling
+- `02_analytic_models.sas`: Propensity score matching and outcome modeling
 
 ## Requirements
 
