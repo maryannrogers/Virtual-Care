@@ -5,9 +5,13 @@ This repository contains SAS code used in my MSc thesis project analyzing prescr
 ## Project Overview
 
 **Objective:** To examine whether the shift to virtual care during and after the COVID-19 pandemic has impacted antibiotic prescribing for acute conditions.
+
 **Data Sources:** BC PharmaNet, Medical Services Plan (MSP), Discharge Abstracts Database (DAD), MSP Consolidation File, Vital Statistics Births/Deaths
+
 **Time Period:** January 2022 – December 2022
+
 **Conditions Studied:** Urinary Tract Infection (UTI), Otitis Media
+
 
 ## Repository Structure
 
