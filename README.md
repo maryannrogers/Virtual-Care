@@ -10,7 +10,7 @@ This repository contains SAS code used in my MSc thesis project analyzing prescr
 
 **Time Period:** January 2022 – December 2022
 
-**Conditions Studied:** Urinary Tract Infection (UTI), Otitis Media
+**Condition Studied:** Urinary Tract Infection (UTI)
 
 
 ## Repository Structure
