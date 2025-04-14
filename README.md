@@ -52,7 +52,7 @@ This repository contains SAS code used in my MSc thesis project analyzing prescr
 - StudyID: ID assigned to each individual in the dataset by PopData BC  
 - VIRTUAL: Binary variable for virtual visits where VIRTUAL = 1 for visits associated with a fee item code for a virtual visit, and VIRTUAL = 0 for visits associated with a fee item code for an in-person visit  
 - wgtccup: Weighted Charlson Comorbidity Index  
-  - Note: This code was adapted from the Manitoba Centre for Health Policy (MCHP).
+  - Note: This code to create this variable was adapted from the Manitoba Centre for Health Policy (MCHP).
     Original source: [Concept: Charlson Comorbidity Index ](http://mchp-appserv.cpe.umanitoba.ca/viewConcept.php?conceptID=1098)
 
 
