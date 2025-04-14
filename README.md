@@ -26,9 +26,9 @@ This repository contains SAS code used in my MSc thesis project analyzing prescr
 ## Data Dictionary
 
 **Datasets:**
-- 'UTI_Dataset_Overall': Contains all visits and prescriptions for individuals who had a UTI in 2022
-- 'UTI_Dataset_Anti': Contains all visits and prescriptions for individuals who were prescribed an antibiotic for UTI in 2022
-- 'UTI_Dataset_Nitro': Contains all visits and prescriptions for individuals who were prescribed Nitrofurantoin for UTI in 2022
+- UTI_Dataset_Overall: Contains all visits and prescriptions for individuals who had a UTI in 2022
+- UTI_Dataset_Anti: Contains all visits and prescriptions for individuals who were prescribed an antibiotic for UTI in 2022
+- UTI_Dataset_Nitro: Contains all visits and prescriptions for individuals who were prescribed Nitrofurantoin for UTI in 2022
 
 **Variables**
 - Active Ingredient: Drug active ingredient from the Canadian Drug Products Database  
