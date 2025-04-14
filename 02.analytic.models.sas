@@ -8,10 +8,9 @@
 /*Propensity Score Matching */
 /********************************/
 
-/* Import Analytic Datasets */
-
 libname TMP1 'R:\working';
 
+/* Import Analytic Datasets */
 /* 1. UTI_dataset_overall.csv which contains information on all visits for UTI and their associated prescriptions in BC in 2022 */
 
 proc import datafile='R:\working/uti_dataset_overall.csv'
