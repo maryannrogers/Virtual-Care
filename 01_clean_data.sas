@@ -57,6 +57,8 @@
 /*************************************************/
 /*************************************************/
 
+libname TMP1 'R:\working';
+
 /* 1. Create a variable called priot_rx_count which counts the number of prescriptions
 an individual had prior to a prescription for a UTI in 2022*/
 
