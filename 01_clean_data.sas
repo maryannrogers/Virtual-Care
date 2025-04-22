@@ -646,16 +646,48 @@ data uti_dataset;
 	else DNBTIPPE11=0;
 run;
 
-data 'R:\working/uti_dataset.sas7bdat';
+/* Running the code without optional steps 10 and 17 will produce the dataset 
+   required for Research Question 1: What is the likelihood of an antibiotic being prescribed?
+   This dataset should be named: uti_dataset_overall.
+
+   Example:
+   data 'R:\working/uti_dataset.sas7bdat';
 	set uti_dataset;
-run;
+   run;
 
-proc export data=uti_dataset
-outfile='R:\working/uti_dataset.csv'
-dbms=csv;
-run;
+   proc export data=uti_dataset
+	outfile='R:\working/uti_dataset.csv'
+	dbms=csv;
+   run;
 
+/* Repeat all steps including optional step 10 (but excluding step 17) to create the dataset 
+   for Research Question 2: What is the likelihood of a broad-spectrum antibiotic being 
+   prescribed in virtual vs. in-person visits?
+   This dataset should be named: uti_dataset_anti.
 
-/* Repeat all steps including optional step 10 (but excluding optional step 17) to create the dataset for research question 2 */
+   Example:
+   data 'R:\working/uti_dataset_anti.sas7bdat';
+	set uti_dataset;
+   run;
 
-/* Repeat all steps including optional steps 10 and 17 to create the dataset for research question 3 */
+   proc export data=uti_dataset
+	outfile='R:\working/uti_dataset_anti.csv'
+	dbms=csv;
+   run;
+
+/* Repeat all steps including optional steps 10 and 17 to create the dataset 
+   for Research Question 3: Do virtual visits impact the number of days of 
+   Nitrofurantoin prescribed for UTI?
+   This dataset should be named: uti_dataset_nitro.
+
+   Example:
+   data 'R:\working/uti_dataset_nitro.sas7bdat';
+	set uti_dataset;
+   run;
+
+   proc export data=uti_dataset
+	outfile='R:\working/uti_dataset_nitro.csv'
+	dbms=csv;
+   run;
+
+   */
