@@ -7,29 +7,88 @@
 /* To run this code, access to the following administrative datasets is required:
 
    1. BC MSP Dataset – Contains records of all medically necessary services provided 
-      by practitioners through the province's fee-for-service system, including 
-      associated diagnostic codes (ICD-9).
+      by practitioners under the province's fee-for-service system, including associated 
+      diagnostic codes (ICD-9).
 
-   2. MSP Consolidation File – Includes demographic information for MSP clients, 
-      such as age, sex, and geographic indicators for place of residence.
+   2. MSP Consolidation File – Provides demographic information for MSP clients, 
+      including age, sex, and geographic indicators of residence.
 
-   3. BC PharmaNet File – Contains data on all prescription drug dispensations from 
-      community pharmacies and physicians' offices in BC, along with claims adjudication 
+   3. BC PharmaNet File – Includes data on all prescription drug dispensations from 
+      community pharmacies and physicians’ offices in BC, along with claims adjudication 
       details.
 
-   4. Vital Events and Statistics: Births and Deaths – Includes all births and deaths 
-      registered in the province.
+   4. Vital Events and Statistics: Births and Deaths – Captures all registered births 
+      and deaths in the province.
 */
 
+/* A dataset listing all common antibiotics, their DINs, and classification as 
+   broad- or narrow-spectrum is also required. This dataset should be organized by 
+   spectrum type and is available upon request from the author. */
+
+/* The Charlson Comorbidity Index must be calculated prior to running the analysis. 
+   Code to generate the index is available at: 
+   http://mchp-appserv.cpe.umanitoba.ca/viewConcept.php?conceptID=1098 */
+   
+/* The file allfiles.zip, which contains information on drug active ingredients from 
+   Health Canada's Drug Product Database, is also required. It can be downloaded from: 
+   https://www.canada.ca/en/health-canada/services/drugs-health-products/drug-products/drug-product-database/what-data-extract-drug-product-database.html */
+
 /* NOTE: The following code was run on data where individuals born or deceased 
-   during the analytic year of interest were excluded. If you are replicating 
-   this analysis, you will need to remove individuals who were born or died 
-   during your study period. */
+   during the analytic year of interest were excluded. To replicate this analysis, 
+   ensure that individuals born or deceased during your study period are removed. */
+
+/*************************************************/
+
+/* Executing this code without optional steps 10 and 17 will produce the dataset 
+   required to answer Research Question 1: What is the likelihood of an antibiotic being prescribed
+   in virtual versus in-person visits for UTI?
+
+   Perform step 10 (but not 17) to create the dataset for Research Question 2: 
+   What is the likelihood of a broad-spectrum antibiotic being prescribed in virtual 
+   versus in-person visits for UTI?
+
+   Perform all optional steps (10 and 17) to generate the dataset for Research Question 3: 
+   Do virtual visits impact the number of days of Nitrofurantoin prescribed for UTI?
+
+   All three datasets will be required to utilize 02.analytic_model.sas */
+
+/*************************************************/
+/*************************************************/
+
+/* 1. Create a variable called priot_rx_count which counts the number of prescriptions
+an individual had prior to a prescription for a UTI in 2022*/
+
+data tmp1.rpt;
+	set tmp1.rpt;
+	by studyid;
+	count+1;
+	if first.studyid then count=1;
+run;
+
+data tmp1.rpt;
+set tmp1.rpt;
+prior_rx_count=count-1;
+drop count;
+run;
+
+ /* 2. Extract Pre-existing variables from PharmaNet into a new dataset called UTI_DATASET */
 
 
-/* ICD Code Specific Data Creation */
+data uti_dataset;
+	set TMP1.rpt(keep=studyid Gender CLNT_BRTH Age_Label Patient_HA Patient_HA_Area Practitioner_Type DIN_PIN
+	Servdate Quantity_Dispensed Days_Supply_Dispensed prior_rx_count);
+run;
 
-/* 1. Create a dataset from MSP called MSP_UTI which includes visits associated with the following ICD-9 codes:
+proc datasets;
+modify uti_dataset;
+rename servdate=prescription_date;
+run;
+
+data 'R:\working/UTI_DATASET.sas7bdat';
+	set work.uti_dataset;
+run;
+
+/* 3. Create a dataset from MSP called MSP_UTI which includes visits associated with the following ICD-9 codes:
 5990, 599, 788, 7880, 7881, 7884, 7886 */
 
 data MSP_UTI;
@@ -45,7 +104,7 @@ data 'R:\working/MSP_UTI.sas7bdat';
 	set work.Msp_uti;
 run;
 
-/* 2. Merge HSDA and HA from Registry into MSP_UTI*/
+/* 4. Merge HSDA and HA from the MSP Consolidation File (registry) into MSP_UTI*/
 
 proc sql;
 	Create table MSP_UTI as
@@ -53,12 +112,12 @@ proc sql;
 		b.HSDA,
 		b.HA
 	from MSP_UTI as a
-	left join TMP2.registry as b
+	left join tmp1.registry as b
 	on a.studyid=b.studyid
 	and year(a.ServDate)=b.YEAR;
 quit;
 
-/*2.  Merge QNBTIPPE and DNBTIPPE from Census into MSP_UTI*/
+/* 5.  Merge QNBTIPPE and DNBTIPPE from the MSP Consolidation File Consolidation (census) into MSP_UTI*/
 
 proc sql;
 	Create table MSP_UTI as
@@ -66,7 +125,7 @@ proc sql;
 		b.QNBTIPPE,
 		b.DNBTIPPE
 	from MSP_UTI as a
-	left join TMP2.census as b
+	left join tmp1.census as b
 	on a.studyid=b.studyid
 	and year(a.ServDate)=b.YEAR;
 quit;
@@ -75,65 +134,29 @@ data 'R:\working/MSP_UTI.sas7bdat';
 	set work.Msp_uti;
 run;
 
- /* 3. Extract Pre-existing variables from PharmaNet into a new dataset called UTI_DATASET */
+/* 6. Merge in demographic data from MSP Consolodation file (demo)*/
 
-
-data UTI_DATASET_march20_anti;
-	set TMP1.rpt(keep=studyid Gender CLNT_BRTH Age_Label Patient_HA Patient_HA_Area Practitioner_Type DIN_PIN
-	Servdate Quantity_Dispensed Days_Supply_Dispensed Drug_Cost_Accepted Drug_Cost_Claimed Drug_Cost_Paid
-	Professional_Fee_Accepted Professional_Fee_Paid TOT_Patient_PAID TOT_PCARE_PAID SPEC_AUTHY_FLG 
-	Accumulated_Expenditure Claim_Status prior_rx_count);
+data demo_new;
+	set tmp1.demo;
+	DOB=mdy(dobmm, 1, dobyyyy);
+	format DOB yymmdd10.;
 run;
 
-proc datasets;
-modify uti_dataset_march20_anti;
-rename servdate=prescription_date;
+data MSP_UTI;
+merge demo_new (in=a) MSP_UTI(in=b);
+by studyid;
+if a and b;
 run;
 
-data 'R:\working/UTI_DATASET.sas7bdat';
-	set work.uti_dataset;
+data 
+	set MSP_UTI;
+	drop CLNT_BRTH;
 run;
 
-/* Create a variable called RX_YEAR which counts the number of RX an individual had in the year prior to a prescription for a UTI in 2022 */
+/* 7. Assign VIRTUAL = 1 for specified virtual visit codes */
 
-data tmp3.rpt;
-	set tmp3.rpt;
-	by studyid;
-	count+1;
-	if first.studyid then count=1;
-run;
-
-data tmp1.rpt;
-set tmp1.rpt;
-prior_rx_count=count-1;
-drop count;
-run;
-
-proc sql;
-	create table merge_rx as
-		select A.*,
-		B.prior_rx_count
-	from WANT as A
-		left join tmp1.rpt as B
-	on A.studyid=B.studyid
-		and
-		abs (A.visit_date-B.servdate)=(select min(abs(A.visit_date-servdate))
-			from WANT as B
-			where A.studyid=B.studyid);
-quit;
-
-
-proc sql;
-create table RX_YEAR2 as
-select distinct * from want A left join tmp2.rpt B
-on A.studyid=B.studyid and A.Prescription_Date=B.Servdate
-order by studyid,visit_date
-;quit;
-
-/* 4. Assign VIRTUAL = 1 for specified virtual visit codes */
-
-data Tmp3.MSP_UTI;    
-	set Tmp3.MSP_UTI;
+data MSP_UTI;    
+	set MSP_UTI;
 	by studyid;    
 	if FITM in(
 		13036, 13236, 13436, 13536, 13636, 13736, 13836, /* In-office consultation */
@@ -158,14 +181,17 @@ data Tmp3.MSP_UTI;
 	if VIRTUAL=. then delete;
 	run;
 
-/* 5. Merge MSP_UTI into UTI_DATASET */
+/* 8. Merge MSP_UTI into UTI_DATASET */
+
+/* This code joins a visit from MSP_UTI with a prescription from PharmaNet if the prescription was filled within
+two weeks of a physician visit for UTI */
 
 /*Full join MSP_UTI with Pharmanet_UTI*/
 
 proc sql;
-	create table WANT as
+	create table uti_dataset as
 	select coalesce(A.studyid,B.studyid) as studyid, A.*, B.* from
-	TMP1.MSP_UTI A FULL JOIN uti_dataset_march20_anti B 
+	MSP_UTI A FULL JOIN uti_dataset B 
 	on A.studyid=B.studyid and B.Prescription_Date>=A.visit_date and B.Prescription_Date<=(A.visit_date+14)
 	order by studyid,visit_date;
 quit;
@@ -175,13 +201,14 @@ data WANT;
 	if Prescription_Date^=. and visit_date=. then delete;
 run;
 
-data 'R:\working/UTI_DATASETfeb27.sas7bdat';
-	set work.WANT;
+data 'R:\working/uti_dataset.sas7bdat';
+	set work.uti_dataset;
 run;
 
 
-/*6. Create the BROAD Variable and a variable called 
-ANTIBIOTIC which checks to see if an antibiotic was prescribed */
+/*9. Create two variables, BROAD and ANTBIOTIC. Broad is a binary variable  which =1 if a broad-spectrum antibiotic
+was prescribed and =0 if a narrow-spectrum antibiotic was prescribed. ANTIBIOTIC is a binary variable which =1 if an 
+antibiotic was prescribed and =0 if not */
 
 /* Import BROAD_DIN */
 
@@ -216,7 +243,7 @@ data din_list;
 run;
 
 proc sql;
-	create table uti_dataset_march20 as
+	create table uuti_dataset as
 	select a.*,
 	case
 	when b.DIN is not null and BROAD=1 then 1
@@ -225,66 +252,68 @@ proc sql;
 	else .
 	end as BROAD,
 	case when b.DIN is not null then 1 else 0 end as ANTIBIOTIC
-	from Want as a
+	from uti_dataset as a
 	left join din_list as b
 	on a.DIN_PIN=b.DIN
 	order by a.studyid;
 quit;
 
-/* Remove rows where BROAD=3 */
+/* 10. OPTIONAL: Remove rows where an antibiotic was not prescribed (BROAD=3) */
+/* This step should not be performed if you seek to determine the liklihood of
+an antibiotic being prescribed */
 
-data uti_dataset_march13;
-	set uti_dataset_march13;
+data uuti_dataset;
+	set uuti_dataset;
 	if BROAD ne 3;
 run;
 
-/* 7. Create a flag called PRIOR_RX_FLAG which identifies individuals who had a prescription for a UTI in 2022
+/* 11. Create a flag called PRIOR_RX_FLAG which identifies individuals who had a prescription for a UTI in 2022
 who also had a prescription for a UTI in the year prior */
 
-proc sort data=uti_dataset_march20;by studyid Prescription_Date;run;
+proc sort data=uti_dataset;by studyid Prescription_Date;run;
 
-data WANT;
-set uti_dataset_march20;
+data uti_dataset;
+set uti_dataset;
 format Pre1 yymmddd10.;
 by studyid;Pre1=lag(Prescription_Date);
 if first.studyid then Pre1=.;
 run;
 
-data WANT;
-set WANT;
+data uti_dataset;
+set uti_dataset;
 if Year(Prescription_Date)=2022 and Pre1>=(Prescription_Date-365) and Pre1<=Prescription_Date
 then PRIOR_RX_FLAG=1; else PRIOR_RX_FLAG=0;
 run;
 
-/* 8. Create a flag called PRIOR_VISIT_FLAG which identifies individuals who had a visit for a UTI in 2022
+/* 12. Create a flag called PRIOR_VISIT_FLAG which identifies individuals who had a visit for a UTI in 2022
 who also had a visit for a UTI in the year prior */
 
-data want;
-set want;
+data uti_dataset;
+set uti_dataset;
 format Pre yymmddd10.;
 by studyid;Pre=lag(visit_date);
 if first.studyid then Pre=.;
 run;
 
-data want;
-set want;
+data uti_dataset;
+set uti_dataset;
 if Year(visit_date)=2022 and Pre>=(visit_date-365) and Pre<=visit_date
 then PRIOR_VISIT_FLAG=1; else PRIOR_VISIT_FLAG=0;
 run;
 
-data want;
-	set want;
+data uti_dataset;
+	set uti_dataset;
 	drop pre pre1;
 run;
 
-data 'R:\working/UTI_DATASETfeb27.sas7bdat';
-	set work.WANT;
+data 'R:\working/Uuti_dataset.sas7bdat';
+	set work.uti_dataset;
 run;
 
-/* 9. Create a variable called PROP_VIRTUAL with the proportion of visits a physician performs virtually */
+/* 13. Create a variable called PROP_VIRTUAL, which represents the proportion of visits a physician performs virtually */
 
 data visit_counts;
-	set Tmp4.msp;
+	set tmp1.msp;
 
 	if FITM in(
 		13036, 13236, 13436, 13536, 13636, 13736, 13836, /* In-office consultation */
@@ -332,42 +361,45 @@ data prop_virtual_output;
 run;
 
 proc sql;
-	create table want as 
+	create table uti_dataset as 
 	select a.*,
 	b.PROP_VIRTUAL
-	from want as a 
+	from uti_dataset as a 
 	left join prop_virtual_output as b
 	on a.PRACNUM = b.PRACNUM;
 quit;
 
-proc sort data=WANT;by studyid Prescription_Date;run;
+proc sort data=uti_dataset;by studyid Prescription_Date;run;
 
 data 'R:\working/UTI_DATASET.sas7bdat';
-	set WANT;
+	set uti_dataset;
 run;
 
-/* 10. Merge in previously calculated Charslon Comorbidity Index data */
+/* 14. Merge in previously calculated Charslon Comorbidity Index data */
 
 proc sql;
-	create table WANT as
+	create table uti_dataset as
 	select a.*,
 	b.totalcc,
 	b.wgtcc,
 	wgtccup
-from WANT as a
-left join Tmp2.CC_tot_index as b
+from uti_dataset as a
+left join Tmp1.CC_tot_index as b
 on a.studyid=b.studyid;
 quit;
 
-data 'R:\working/UTI_DATASETfeb27.sas7bdat';
-	set WANTcc;
+data 'R:\working/uti_dataset.sas7bdat';
+	set uti_dataset;
 run;
 
-/* Create a new dataset called most_resp_MD with visit counts for each studyid and PRACNUM */
-proc sql;    
+/* 15. Create a binary variable called MRP, which = 1 if the UTI-related physician visit 
+      was conducted by the patient’s most responsible physician. This designation is assigned 
+      based on the physician with whom the patient had the most visits during the study period. */
+      
+proc SQL;
 	create table visit_counts as    
 	select studyid, PRACNUM, count(*) as visit_count
-	from Tmp4.msp
+	from Tmp41.msp
 	group by studyid, PRACNUM;   
 quit;
 
@@ -392,242 +424,15 @@ quit;
 /* Join MRP with the full dataset */
 
 proc sql; 
-	create table Tmp1.uti_dataset_march20 as
+	create table Tuti_dataset as
 	select a.*,
 		coalesce (b.MRP, 0) as MRP
-	from want as a
+	from uti_dataset as a
 	left join MRP as b
 on a.studyid=b.studyid and a.PRACNUM=b.PRACNUM;
 quit;
 
-
-/* restrict the dataset to 2022 */
-
-data tmp1.uti_dataset_march20;
-	set want;
-	where year(visit_date)=2022;
-run;
-
-/* Resrict the dataset to only GP visits */
-
-data tmp1.uti_dataset_march20;
-	set tmp1.uti_dataset_march20;
-	where clmspec = 0;
-run;
-
-data tmp1.uti_dataset_march20_ant;
-	set tmp1.uti_dataset_march20_ant;
-	if ANTIBIOTIC = 1;
-run;
-/* Merge in demographic data */
-
-proc contents data = tmp1.uti_dataset_mar13 out=var_list(keep=name) noprint;
-run;
-
-data demo_new;
-	set tmp3.demo;
-	DOB=mdy(dobmm, 1, dobyyyy);
-	format DOB yymmdd10.;
-run;
-
-data tmp1.uti_dataset_march20;
-merge demo_new (in=a) tmp1.uti_dataset_march20(in=b);
-by studyid;
-if a and b;
-run;
-
-data 
-	set tmp1.uti_dataset_march20;
-	drop CLNT_BRTH;
-run;
-
-data 'R:\working/UTI_DATASET_march20.sas7bdat';
-	set tmp1.uti_dataset_march20;
-run;
-proc freq data=tmp1.uti_dataset_march20_mrp;
-	tables DNBTIPPE;
-run;
-
-/* Create Dummies */
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_march20_anti;
-	if HSDA= 11 then hsda1=1;
-	else hsda1=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 12 then hsda2=1;
-	else hsda2=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 13 then hsda3=1;
-	else hsda3=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 14 then hsda4=1;
-	else hsda4=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 21 then hsda5=1;
-	else hsda5=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 22 then hsda6=1;
-	else hsda6=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 23 then hsda7=1;
-	else hsda7=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 31 then hsda8=1;
-	else hsda8=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 32 then hsda9=1;
-	else hsda9=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 33 then hsda10=1;
-	else hsda10=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 41 then hsda11=1;
-	else hsda11=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 42 then hsda12=1;
-	else hsda12=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 43 then hsda13=1;
-	else hsda13=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 51 then hsda14=1;
-	else hsda14=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 52 then hsda15=1;
-	else hsda15=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 53 then hsda16=1;
-	else hsda16=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if HSDA= 99 then hsda17=1;
-	else hsda17=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if DNBTIPPE= 1 then DNBTIPPE1=1;
-	else DNBTIPPE1=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if DNBTIPPE= 2 then DNBTIPPE2=1;
-	else DNBTIPPE2=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if DNBTIPPE= 3 then DNBTIPPE3=1;
-	else DNBTIPPE3=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if DNBTIPPE= 4 then DNBTIPPE4=1;
-	else DNBTIPPE4=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if DNBTIPPE= 5 then DNBTIPPE5=1;
-	else DNBTIPPE5=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if DNBTIPPE= 6 then DNBTIPPE6=1;
-	else DNBTIPPE6=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if DNBTIPPE= 7 then DNBTIPPE7=1;
-	else DNBTIPPE7=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if DNBTIPPE= 8 then DNBTIPPE8=1;
-	else DNBTIPPE8=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if DNBTIPPE= 9 then DNBTIPPE9=1;
-	else DNBTIPPE9=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if DNBTIPPE= 10 then DNBTIPPE10=1;
-	else DNBTIPPE10=0;
-run;
-
-data tmp1.uti_dataset_dummies;
-	set tmp1.uti_dataset_dummies;
-	if DNBTIPPE= 999 then DNBTIPPE11=1;
-	else DNBTIPPE11=0;
-run;
-
-data 'R:\working/UTI_DATASET_march20_ant.sas7bdat';
-	set tmp1.uti_dataset_dummies;
-run;
-
-proc export data=tmp1.uti_dataset_march25
-outfile='R:\working/UTI_DATASET_march25.csv'
-dbms=csv;
-run;
-
-/* import and merge DPD date */
+/* 16. import and merge active ingredient data from DPD with uti_dataset */
 
 proc import datafile='R:\working\DPD.csv'
 out=dpd
@@ -635,25 +440,220 @@ dbms=csv;
 run;
 
 proc sql;
-	create table uti_dataset_april8 as
+	create table uti_dataset as
 	select a.*, b.INGREDIENT
-	from tmp1.uti_dataset_march25 as a
+	from uti_dataset as a
 		left join dpd as b
 		on a.DIN_PIN=b.Din_pin;
 quit;
 
-/* restrict to nitrofurantion */
+/* 17. OPTIONAL - If you would like to look at prescribing patterns for one
+common active ingredient */
+/* Restrict the active ingredient to nitrofurantoin */
 
-data uti_dataset_april8_nitro;
-	set uti_dataset_april8;
+data uti_dataset;
+	set uti_dataset;
 	where INGREDIENT = 'NITROFURANTOIN';
 run;
 
-data 'R:\working/UTI_DATASET_april8_nitro.sas7bdat';
-	set uti_dataset_april8_nitro;
+data 'R:\working/uti_dataset.sas7bdat';
+	set uti_dataset;
 run;
 
-proc export data=tmp1.uti_dataset_anti
-outfile='R:\working/uti_dataset_anti.csv'
+proc export data=uti_dataset
+outfile='R:\working/uti_dataset.csv'
 dbms=csv;
 run;
+
+
+/* 18. restrict uti_dataset to 2022 */
+
+data uti_dataset;
+	set uti_dataset;
+	where year(visit_date)=2022;
+run;
+
+/* 19. Restrict uti_dataset to only GP visits */
+
+data uti_dataset;
+	set uti_dataset;
+	where clmspec = 0;
+run;
+
+/* 20. Create dummies for HSDA and DNBTIPPE for use in proc psmatch*/
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 11 then hsda1=1;
+	else hsda1=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 12 then hsda2=1;
+	else hsda2=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 13 then hsda3=1;
+	else hsda3=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 14 then hsda4=1;
+	else hsda4=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 21 then hsda5=1;
+	else hsda5=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 22 then hsda6=1;
+	else hsda6=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 23 then hsda7=1;
+	else hsda7=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 31 then hsda8=1;
+	else hsda8=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 32 then hsda9=1;
+	else hsda9=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 33 then hsda10=1;
+	else hsda10=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 41 then hsda11=1;
+	else hsda11=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 42 then hsda12=1;
+	else hsda12=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 43 then hsda13=1;
+	else hsda13=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 51 then hsda14=1;
+	else hsda14=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 52 then hsda15=1;
+	else hsda15=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if HSDA= 53 then hsda16=1;
+	else hsda16=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if DNBTIPPE= 1 then DNBTIPPE1=1;
+	else DNBTIPPE1=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if DNBTIPPE= 2 then DNBTIPPE2=1;
+	else DNBTIPPE2=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if DNBTIPPE= 3 then DNBTIPPE3=1;
+	else DNBTIPPE3=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if DNBTIPPE= 4 then DNBTIPPE4=1;
+	else DNBTIPPE4=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if DNBTIPPE= 5 then DNBTIPPE5=1;
+	else DNBTIPPE5=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if DNBTIPPE= 6 then DNBTIPPE6=1;
+	else DNBTIPPE6=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if DNBTIPPE= 7 then DNBTIPPE7=1;
+	else DNBTIPPE7=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if DNBTIPPE= 8 then DNBTIPPE8=1;
+	else DNBTIPPE8=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if DNBTIPPE= 9 then DNBTIPPE9=1;
+	else DNBTIPPE9=0;
+run;
+
+data uti_dataset;
+	set uti_dataset;
+	if DNBTIPPE= 10 then DNBTIPPE10=1;
+	else DNBTIPPE10=0;
+run;
+
+data uti_dataset;
+	set tuti_dataset;
+	if DNBTIPPE= 999 then DNBTIPPE11=1;
+	else DNBTIPPE11=0;
+run;
+
+data 'R:\working/uti_dataset.sas7bdat';
+	set uti_dataset;
+run;
+
+proc export data=uti_dataset
+outfile='R:\working/uti_dataset.csv'
+dbms=csv;
+run;
+
+
+/* Repeat all steps including optional step 10 (but excluding optional step 17) to create the dataset for research question 2 */
+
+/* Repeat all steps including optional steps 10 and 17 to create the dataset for research question 3 */
