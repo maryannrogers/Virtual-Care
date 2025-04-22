@@ -42,15 +42,16 @@ This repository contains SAS code used in my MSc thesis project analyzing prescr
 - DNBTIPPE 1-11: Neighbourhood income decile before tax  
 - FITM: Paid for Item (Fee Item) is a numeric code used to identify each service provided by a practitioner. Each fee item has an associated fee that is paid to the payee for the service provided  
 - HSDA 1-16: BC health service delivery area  
-- MRP: Binary variable where 1 = the physician visit was with an individual's most responsible physician, 0 = it was not  
+- MRP: Binary variable where 1 = the physician visit was with an individual's most responsible physician, 0 = it was not
+- prescription_date: The date on which a prescription was dispensed 
 - prior_rx_count: Count of how many prescriptions an individual had in the year prior to one for UTI  
 - prior_rx_flag: Binary variable where 1 = an individual had a prescription for UTI in the prior year, 0 = they did not  
 - prior_visit_flag: Binary variable where 1 = an individual saw a physician for UTI in the prior year, 0 = they did not  
 - prop_virtual: Proportion of visits a physician provides virtually in their practice  
-- SERVDT: Service Date is the date on which the service was rendered by an outpatient practitioner  
 - Sex: Sex assigned at birth  
 - StudyID: ID assigned to each individual in the dataset by PopData BC  
-- VIRTUAL: Binary variable for virtual visits where VIRTUAL = 1 for visits associated with a fee item code for a virtual visit, and VIRTUAL = 0 for visits associated with a fee item code for an in-person visit  
+- VIRTUAL: Binary variable for virtual visits where VIRTUAL = 1 for visits associated with a fee item code for a virtual visit, and VIRTUAL = 0 for visits associated with a fee item code for an in-person visit
+- visit_date: The date on which the service was rendered by an outpatient practitioner  
 - wgtccup: Weighted Charlson Comorbidity Index  
   - Note: This code to create this variable was adapted from the Manitoba Centre for Health Policy (MCHP).
     Original source: [Concept: Charlson Comorbidity Index ](http://mchp-appserv.cpe.umanitoba.ca/viewConcept.php?conceptID=1098)
