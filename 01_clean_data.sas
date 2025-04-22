@@ -33,10 +33,6 @@
    Health Canada's Drug Product Database, is also required. It can be downloaded from: 
    https://www.canada.ca/en/health-canada/services/drugs-health-products/drug-products/drug-product-database/what-data-extract-drug-product-database.html */
 
-/* NOTE: The following code was run on data where individuals born or deceased 
-   during the analytic year of interest were excluded. To replicate this analysis, 
-   ensure that individuals born or deceased during your study period are removed. */
-
 /*************************************************/
 
 /* Executing this code without optional steps 10 and 17 will produce the dataset 
@@ -52,6 +48,12 @@
 
    All three datasets will be required to utilize 02.analytic_model.sas */
 
+/*************************************************/
+
+/* NOTE: The following code was run on data where individuals born or deceased 
+   during the analytic year of interest were excluded. To replicate this analysis, 
+   ensure that individuals born or deceased during your study period are removed. */
+   
 /*************************************************/
 /*************************************************/
 
