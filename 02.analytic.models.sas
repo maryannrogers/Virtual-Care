@@ -52,7 +52,7 @@ Ods graphics on / height=8in width=6in;
 
 /* 6. Calculate the propensity score for the larger dataset with all prescriptions associated with UTI */
 proc logistic data=tmp1.uti_dataset_overall;
-  class Sex (missing) prior_rx_flag (missing) prior_visit_flag(missing) MRP(missing) VIRTUAL(missing) &hsda_vars(missing) &DNBTIPPE_vars(missing);
+  class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL &hsda_vars &DNBTIPPE_vars;
   model VIRTUAL(REF='0') = Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup prior_rx_count &hsda_vars &DNBTIPPE_vars prop_virtual
   /link=glogit rsquare;
   output out = tmp1.uti_dataset_overall pred = ps;
