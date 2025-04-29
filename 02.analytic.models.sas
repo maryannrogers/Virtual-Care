@@ -139,7 +139,7 @@ run;
 /* Adjust the weight for the cohort */
 proc sql;
   create table ps_weight_adj_overall as
-  select *, (count(*)/358389)*ps_weight_overall as ps_weight_adj_overall
+  select *, (count(*)/358389)*ps_weight_overall as ps_weight_adj_overall /* Replace the value here with the number of observations in the ps_weight_overall dataset */
   from ps_weight_overall group by VIRTUAL;
 quit;
 
@@ -250,7 +250,7 @@ run;
 /* Adjust the weight for the cohort */
 proc sql;
   create table ps_weight_adj_anti as
-  select *, (count(*)/76906)*ps_weight_anti as ps_weight_adj_anti
+  select *, (count(*)/76906)*ps_weight_anti as ps_weight_adj_anti /* Replace the value here with the number of observations in the ps_weight_overall dataset */
   from ps_weight_anti group by VIRTUAL;
 quit;
 
@@ -362,7 +362,7 @@ run;
 /* Adjust the weight for the cohort */
 proc sql;
   create table ps_weight_adj_nitro as
-  select *, (count(*)/30791)*ps_weight_nitro as ps_weight_adj_nitro
+  select *, (count(*)/30791)*ps_weight_nitro as ps_weight_adj_nitro /* Replace the value here with the number of observations in the ps_weight_overall dataset */
   from ps_weight_nitro group by VIRTUAL;
 quit;
 
