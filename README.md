@@ -61,5 +61,5 @@ This repository contains SAS code used in my MSc thesis project analyzing prescr
 
 If you use this code, please cite:
 
-Rogers M. The impact of virtual care on prescribing practices for acute conditions: a global scoping review and regional analysis of British Columbia [master’s thesis].
+Rogers M., Hedden L., McGrail K., Cheng L., Tsuei S., Law M. The impact of virtual care on prescribing practices for acute conditions: a global scoping review and regional analysis of British Columbia [master’s thesis].
 Vancouver (BC): University of British Columbia; 2025. Available from: https://github.com/maryannrogers/Virtual-Care
