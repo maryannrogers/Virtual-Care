@@ -75,7 +75,20 @@ prior_rx_count=count-1;
 drop count;
 run;
 
- /* 2. Extract Pre-existing variables from PharmaNet into a new dataset called UTI_DATASET */
+/* 2. Create a variable called prior_rx_mod setting the count to 0 if prior_rx_count is missing */
+data tmp1.rpt;
+set tmp1.rpt;
+  if missing(prior_rx_count) then prior_rx_mod = 0;
+  else prior_rx_mod = prior_rx_count;
+run;
+
+/* 3. Create a variable called prior_rx_miss, an indicator for missing prior_rx_count */
+data tmp1.rpt;
+set tmp1.rpt;
+  prior_rx_miss = missing(prior_rx_count);
+run;
+
+ /* 4. Extract Pre-existing variables from PharmaNet into a new dataset called UTI_DATASET */
 
 
 data uti_dataset;
@@ -92,7 +105,7 @@ data 'R:\working/UTI_DATASET.sas7bdat';
 	set work.uti_dataset;
 run;
 
-/* 3. Create a dataset from MSP called MSP_UTI which includes visits associated with the following ICD-9 codes:
+/* 5. Create a dataset from MSP called MSP_UTI which includes visits associated with the following ICD-9 codes:
 5990, 599, 788, 7880, 7881, 7884, 7886 */
 
 data MSP_UTI;
@@ -108,7 +121,7 @@ data 'R:\working/MSP_UTI.sas7bdat';
 	set work.Msp_uti;
 run;
 
-/* 4. Merge HSDA and HA from the MSP Consolidation File (registry) into MSP_UTI*/
+/* 6. Merge HSDA and HA from the MSP Consolidation File (registry) into MSP_UTI*/
 
 proc sql;
 	Create table MSP_UTI as
@@ -121,7 +134,7 @@ proc sql;
 	and year(a.ServDate)=b.YEAR;
 quit;
 
-/* 5.  Merge QNBTIPPE and DNBTIPPE from the MSP Consolidation File Consolidation (census) into MSP_UTI*/
+/* 7.  Merge QNBTIPPE and DNBTIPPE from the MSP Consolidation File Consolidation (census) into MSP_UTI*/
 
 proc sql;
 	Create table MSP_UTI as
@@ -138,7 +151,7 @@ data 'R:\working/MSP_UTI.sas7bdat';
 	set work.Msp_uti;
 run;
 
-/* 6. Merge in demographic data from MSP Consolodation file (demo)*/
+/* 8. Merge in demographic data from MSP Consolodation file (demo)*/
 
 data demo_new;
 	set tmp1.demo;
@@ -157,7 +170,7 @@ data
 	drop CLNT_BRTH;
 run;
 
-/* 7. Assign VIRTUAL = 1 for specified virtual visit codes */
+/* 9. Assign VIRTUAL = 1 for specified virtual visit codes */
 
 data MSP_UTI;    
 	set MSP_UTI;
@@ -185,7 +198,7 @@ data MSP_UTI;
 	if VIRTUAL=. then delete;
 	run;
 
-/* 8. Merge MSP_UTI into UTI_DATASET */
+/* 10. Merge MSP_UTI into UTI_DATASET */
 
 /* This code joins a visit from MSP_UTI with a prescription from PharmaNet if the prescription was filled within
 two weeks of a physician visit for UTI */
@@ -210,7 +223,7 @@ data 'R:\working/uti_dataset.sas7bdat';
 run;
 
 
-/*9. Create two variables, BROAD and ANTBIOTIC. Broad is a binary variable  which =1 if a broad-spectrum antibiotic
+/* 11. Create two variables, BROAD and ANTBIOTIC. Broad is a binary variable  which =1 if a broad-spectrum antibiotic
 was prescribed and =0 if a narrow-spectrum antibiotic was prescribed. ANTIBIOTIC is a binary variable which =1 if an 
 antibiotic was prescribed and =0 if not */
 
@@ -262,16 +275,16 @@ proc sql;
 	order by a.studyid;
 quit;
 
-/* 10. OPTIONAL: Remove rows where an antibiotic was not prescribed (BROAD=3) */
+/* 12. OPTIONAL: Remove rows where an antibiotic was not prescribed (BROAD=3) */
 /* This step should not be performed if you seek to determine the liklihood of
 an antibiotic being prescribed */
 
-data uuti_dataset;
+data uti_dataset;
 	set uuti_dataset;
 	if BROAD ne 3;
 run;
 
-/* 11. Create a flag called PRIOR_RX_FLAG which identifies individuals who had a prescription for a UTI in 2022
+/* 13. Create a flag called PRIOR_RX_FLAG which identifies individuals who had a prescription for a UTI in 2022
 who also had a prescription for a UTI in the year prior */
 
 proc sort data=uti_dataset;by studyid Prescription_Date;run;
@@ -289,7 +302,7 @@ if Year(Prescription_Date)=2022 and Pre1>=(Prescription_Date-365) and Pre1<=Pres
 then PRIOR_RX_FLAG=1; else PRIOR_RX_FLAG=0;
 run;
 
-/* 12. Create a flag called PRIOR_VISIT_FLAG which identifies individuals who had a visit for a UTI in 2022
+/* 14. Create a flag called PRIOR_VISIT_FLAG which identifies individuals who had a visit for a UTI in 2022
 who also had a visit for a UTI in the year prior */
 
 data uti_dataset;
@@ -314,7 +327,7 @@ data 'R:\working/Uuti_dataset.sas7bdat';
 	set work.uti_dataset;
 run;
 
-/* 13. Create a variable called PROP_VIRTUAL, which represents the proportion of visits a physician performs virtually */
+/* 15. Create a variable called PROP_VIRTUAL, which represents the proportion of visits a physician performs virtually */
 
 data visit_counts;
 	set tmp1.msp;
@@ -379,7 +392,7 @@ data 'R:\working/UTI_DATASET.sas7bdat';
 	set uti_dataset;
 run;
 
-/* 14. Merge in previously calculated Charslon Comorbidity Index data */
+/* 16 . Merge in previously calculated Charslon Comorbidity Index data */
 
 proc sql;
 	create table uti_dataset as
@@ -396,7 +409,7 @@ data 'R:\working/uti_dataset.sas7bdat';
 	set uti_dataset;
 run;
 
-/* 15. Create a binary variable called MRP, which = 1 if the UTI-related physician visit 
+/* 17. Create a binary variable called MRP, which = 1 if the UTI-related physician visit 
       was conducted by the patient’s most responsible physician. This designation is assigned 
       based on the physician with whom the patient had the most visits during the study period. */
       
@@ -436,7 +449,7 @@ proc sql;
 on a.studyid=b.studyid and a.PRACNUM=b.PRACNUM;
 quit;
 
-/* 16. import and merge active ingredient data from DPD with uti_dataset */
+/* 18. import and merge active ingredient data from DPD with uti_dataset */
 
 proc import datafile='R:\working\DPD.csv'
 out=dpd
@@ -451,7 +464,7 @@ proc sql;
 		on a.DIN_PIN=b.Din_pin;
 quit;
 
-/* 17. OPTIONAL - If you would like to look at prescribing patterns for one
+/* 19. OPTIONAL - If you would like to look at prescribing patterns for one
 common active ingredient */
 /* Restrict the active ingredient to nitrofurantoin */
 
@@ -470,21 +483,21 @@ dbms=csv;
 run;
 
 
-/* 18. restrict uti_dataset to 2022 */
+/* 20. restrict uti_dataset to 2022 */
 
 data uti_dataset;
 	set uti_dataset;
 	where year(visit_date)=2022;
 run;
 
-/* 19. Restrict uti_dataset to only GP visits */
+/* 21. Restrict uti_dataset to only GP visits */
 
 data uti_dataset;
 	set uti_dataset;
 	where clmspec = 0;
 run;
 
-/* 20. Create dummies for HSDA and DNBTIPPE for use in proc psmatch*/
+/* 22. Create dummies for HSDA and DNBTIPPE for use in proc psmatch*/
 
 data uti_dataset;
 	set uti_dataset;
