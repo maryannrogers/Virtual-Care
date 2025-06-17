@@ -101,23 +101,25 @@ run;
 title;
 
 
-/* 9. Run logistic regression on research question 1 - likelihood of antibiotic prescribing on both the matched and unmatched datasets*/
+/* 9. Run mixed logistic regression on research question 1 - likelihood of antibiotic prescribing on both the matched and unmatched datasets*/
 
 /* Unmatched data */
 
-proc logistic data=tmp1.uti_dataset_overall;
-	class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL (REF='0') &hsda_vars &DNBTIPPE_vars;
-	model ANTIBIOTIC (event='1')=VIRTUAL Sex prior_visit_flag MRP DOBYYYY prior_rx_count wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual;
-	oddsratio VIRTUAL;
+proc genmod data=tmp1.uti_dataset_overall;
+	class Sex pracnum studyid prior_rx_flag prior_visit_flag MRP VIRTUAL(REF='0') &hsda_vars &DNBTIPPE_vars;
+	model ANTIBIOTIC (event='1')=VIRTUAL Sex prior_visit_flag MRP DOBYYYY prior_rx_mod wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual / dist=bin link=logit;
+	repeated subject=studyid(pracnum) / corr=exch corrw;
 run;
+
 
 /* Matched data */
 
 proc logistic data=tmp1.uti_matched;
-	class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL(REF='0') &hsda_vars &DNBTIPPE_vars;
-	model ANTIBIOTIC (event='1')=VIRTUAL Sex prior_visit_flag MRP DOBYYYY prior_rx_count wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual;
-	oddsratio VIRTUAL;
+	class Sex pracnum studyid prior_rx_flag prior_visit_flag MRP VIRTUAL(REF='0') &hsda_vars &DNBTIPPE_vars;
+	model ANTIBIOTIC (event='1')=VIRTUAL Sex prior_visit_flag MRP DOBYYYY prior_rx_mod wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual / dist=bin link=logit;
+	repeated subject=studyid(pracnum) / corr=exch corrw;
 run;
+
 
 /* 10. Run sensitivity analysis with Inverse Propensity Treatment Weighting (IPTW) on research question 1 */
 
@@ -127,29 +129,32 @@ proc logistic data=tmp1.uti_dataset_overall;
   class Sex (missing) prior_rx_flag (missing) prior_visit_flag(missing) MRP(missing) VIRTUAL(missing) &hsda_vars(missing) &DNBTIPPE_vars(missing);
   model VIRTUAL(REF='0') = Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup prior_rx_count &hsda_vars &DNBTIPPE_vars prop_virtual
   /link=glogit rsquare;
-  output out = ps_overall pred = ps;
+  output out = ps_weight pred = ps;
 run;
 
 /* Calculate Inverse Probability Weight */
-data ps_weight_overall;
-  set ps_overall;
-  ps_weight_overall=1/ps;
+data ps_weight;
+  set ps;
+  ps_weight=1/ps;
 run;
 
 /* Adjust the weight for the cohort */
 proc sql;
-  create table ps_weight_adj_overall as
+  create table ps_weight_adj as
   select *, (count(*)/358389)*ps_weight_overall as ps_weight_adj_overall /* Replace the value here with the number of observations in the ps_weight_overall dataset */
-  from ps_weight_overall group by VIRTUAL;
+  from ps_weight group by VIRTUAL;
 quit;
 
-/* 11. Run the logistic regression model with the weighted data */
-proc logistic data=ps_weight_adj_overall;
-  class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL(REF='0') &hsda_vars &DNBTIPPE_vars;
-  model ANTIBIOTIC (event='1')=VIRTUAL Sex prior_rx_flag prior_visit_flag prior_rx_count MRP DOBYYYY wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual
-  / rsquare clodds=wald lackfit;
-  weight ps_weight_adj_overall / normalize;
+/* 11. Run the mixed logistic regression model with the weighted data */
+
+proc genmod data=ps_weight_adj;
+    class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL(ref='0') &hsda_vars &DNBTIPPE_vars;
+    model ANTIBIOTIC(event='1') = VIRTUAL Sex prior_rx_flag prior_visit_flag prior_rx_mod prior_rx_miss 
+                                   MRP DOBYYYY wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual / dist=bin link=logit;
+    weight ps_weight_adj;
+    repeated subject=studyid / corr=exch;
 run;
+
 
 /* 12. Visualize the distribution of the adjusted inverse propensity score */
 title 'Propensity Score Distribution of Inverse PS Weighted Overall Data';
@@ -161,11 +166,29 @@ title 'Propensity Score Distribution of Inverse PS Weighted Overall Data';
 run;
 title;
 
+/* 13 Estimate the predicted probability of antibiotic dispensation for the average observation in the dataset */
+
+proc genmod data=tmp1.uti_matched_april14;
+	class Sex pracnum studyid prior_rx_flag(REF='0') prior_visit_flag(REF='0') MRP(REF='0') VIRTUAL(REF='0') 
+	hsda1(REF='0') hsda2(REF='0') hsda3(REF='0') hsda4(REF='0') hsda5(REF='0') hsda6(REF='0') hsda7(REF='0') hsda8(REF='0')
+	hsda9(REF='0') hsda10(REF='0') hsda11(REF='0') hsda12(REF='0') hsda13(REF='0') hsda14(REF='0') hsda15(REF='0') hsda16(REF='0')
+	DNBTIPPE1(REF='0') DNBTIPPE2(REF='0') DNBTIPPE3(REF='0') DNBTIPPE4(REF='0') DNBTIPPE5(REF='0') DNBTIPPE6(REF='0')
+	DNBTIPPE7(REF='0') DNBTIPPE8(REF='0') DNBTIPPE9(REF='0') DNBTIPPE10(REF='0') DNBTIPPE11(REF='0');
+	model ANTIBIOTIC (event='1')=VIRTUAL Sex prior_visit_flag MRP DOBYYYY prior_rx_mod wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual / dist=bin link=logit;
+	store predict_model;
+	repeated subject=studyid(pracnum) / corr=exch corrw;
+run;
+
+proc plm restore=predict_model;
+	score data=predict_data out=predicted_probs predicted /ilink;
+run;
+
+
 /*************************************************************************************************/
 /* For research question 2 with the dataset restricted to antibiotic prescriptions */
 /*************************************************************************************************/
 
-/* 13. Calculate the propensity with the larger dataset with all antibiotic prescriptions associated with UTI */
+/* 14. Calculate the propensity with the larger dataset with all antibiotic prescriptions associated with UTI */
 proc logistic data=tmp1.uti_dataset_anti;
 	class Sex (missing) prior_rx_flag (missing) prior_visit_flag(missing) MRP(missing) VIRTUAL(missing) &hsda_vars(missing) &DNBTIPPE_vars(missing);
 	model VIRTUAL(REF='0') = Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup prior_rx_count &hsda_vars &DNBTIPPE_vars prop_virtual
@@ -173,7 +196,7 @@ proc logistic data=tmp1.uti_dataset_anti;
 	output out = tmp1.uti_dataset_anti pred = ps;
 run;
 
-/* 14. Perform propensity score matching with greedy k=1 matching and a caliper of 0.25 */
+/* 15. Perform propensity score matching with greedy k=1 matching and a caliper of 0.25 */
 
 proc psmatch data=tmp1.uti_dataset_anti;
 	class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL &hsda_vars &DNBTIPPE_vars;
@@ -194,7 +217,7 @@ proc export data=uti_matched_anti
   dbms=csv;
 run;
 
-/* 15. Visualize propensity score distribution on unmatched and matched data */
+/* 16. Visualize propensity score distribution on unmatched and matched data */
 
 title "Propensity Score Distribution of Unmatched Data for Individuals Prescribed an Antibiotic";
   proc sgplot data=tmp1.uti_dataset_anti;
@@ -214,23 +237,23 @@ title 'Propensity Score Distribution of Matched Data Individuals Prescribed an A
 run;
 title;
 
-/* 16. Run logistic regression on research question 2 - type of antibiotic prescribed */
+/* 17. Run mixed logistic regression on research question 2 - type of antibiotic prescribed */
 
 /* Unmatched Data */
-proc logistic data=tmp1.uti_dataset_anti;
+proc genmod data=tmp1.uti_dataset_anti;
 	class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL (ref='0') BROAD &hsda_vars &DNBTIPPE_vars;
-	model BROAD (event='1')=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP prior_rx_count DOBYYYY &DNBTIPPE_vars prop_virtual;
-	oddsratio VIRTUAL;
+	model BROAD (event='1')=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP prior_rx_count DOBYYYY &DNBTIPPE_vars prop_virtual / dist=bin link=logit;
+	repeated subject=studyid(pracnum) / corr=exch corrw;
 run;
 
 /* Matched Data */
-proc logistic data=tmp1.uti_matched_anti;
+proc genmod data=tmp1.uti_matched_anti;
 	class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL (ref='0') BROAD &hsda_vars &DNBTIPPE_vars;
-	model BROAD (event='1')=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP prior_rx_count DOBYYYY &DNBTIPPE_vars prop_virtual;
-	oddsratio VIRTUAL;
+	model BROAD (event='1')=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP prior_rx_count DOBYYYY &DNBTIPPE_vars prop_virtual  dist=bin link=logit;
+	repeated subject=studyid(pracnum) / corr=exch corrw;
 run;
 
-/* 17. Sensitivity analysis with IPSW */
+/* 18. Sensitivity analysis with IPSW */
 
 /* Create the Propensity Scores */
 
@@ -254,15 +277,16 @@ proc sql;
   from ps_weight_anti group by VIRTUAL;
 quit;
 
-/* 18. Run the model */
-proc logistic data=ps_weight_adj_anti;
-  class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL (ref='0') BROAD &hsda_vars &DNBTIPPE_vars;
-  model BROAD (event='1')=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP prior_rx_count DOBYYYY wgtccup &DNBTIPPE_vars prop_virtual
-  / rsquare clodds=wald lackfit;
-  weight ps_weight_adj_anti / normalize;
+/* 19. Run the model */
+proc genmod data=ps_weight_adj_anti;
+  class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL(ref='0') BROAD &hsda_vars &DNBTIPPE_vars;
+  model BROAD(event='1') = VIRTUAL Sex prior_rx_flag prior_visit_flag MRP prior_rx_count DOBYYYY 
+                           wgtccup &DNBTIPPE_vars prop_virtual / dist=bin link=logit;
+  weight ps_weight_adj_anti;
+  repeated subject=studyid / corr=exch;
 run;
 
-/* 19. Visualize the distribution of the adjusted inverse propensity score */
+/* 20. Visualize the distribution of the adjusted inverse propensity score */
 title 'Propensity Score Distribution of Inverse PS Weighted Data for Individuals Prescribed an Antibiotic';
   proc sgplot data=ps_weight_adj_anti;
 	histogram ps_weight_adj_anti / group=VIRTUAL transparency=0.5;
@@ -272,11 +296,25 @@ title 'Propensity Score Distribution of Inverse PS Weighted Data for Individuals
 run;
 title;
 
+/* 21 Estimate the predicted probability of broad spectrum antibiotic dispensation for the average observation in the dataset */
+
+proc genmod data=tmp1.uti_matched_anti;
+	class Sex pracnum studyid prior_rx_flag prior_visit_flag MRP VIRTUAL(REF='0') &hsda_vars &DNBTIPPE_vars;
+	model BROAD (event='1')=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP prior_rx_count DOBYYYY &DNBTIPPE_vars prop_virtual / dist=bin link=logit;
+	store out=genmod_model2;
+	repeated subject=studyid(pracnum) / corr=exch corrw;
+run;
+
+proc plm restore=genmod_model2;
+score data=predict_data out=predicted_probs predicted / ilink;
+run;
+
+
 /*************************************************************************************************/
 /* For research question 3 with the dataset restricted to only Nitrofurantoin prescription */
 /*************************************************************************************************/
 
-/* 20. Calculate the propensity with the larger dataset with all antibiotic prescriptions associated with UTI */
+/* 22. Calculate the propensity with the larger dataset with all antibiotic prescriptions associated with UTI */
 proc logistic data=tmp1.uti_dataset_nitro;
 	class Sex (missing) prior_rx_flag (missing) prior_visit_flag(missing) MRP(missing) VIRTUAL(missing) &hsda_vars(missing) &DNBTIPPE_vars(missing);
 	model VIRTUAL(REF='0') = Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup prior_rx_count &hsda_vars &DNBTIPPE_vars prop_virtual
@@ -284,7 +322,7 @@ proc logistic data=tmp1.uti_dataset_nitro;
 	output out = tmp1.uti_dataset_nitro pred = ps;
 run;
 
-/* 21. Perform propensity score matching with greedy k=1 matching and a caliper of 0.25 */
+/* 23. Perform propensity score matching with greedy k=1 matching and a caliper of 0.25 */
 
 proc psmatch data=tmp1.uti_dataset_nitro;
 	class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL &hsda_vars &DNBTIPPE_vars;
@@ -305,7 +343,7 @@ proc export data=uti_matched_nitro
   dbms=csv;
 run;
 
-/* 22. Visualize propensity score distribution on unmatched and matched data */
+/* 24. Visualize propensity score distribution on unmatched and matched data */
 
 title "Propensity Score Distribution of Unmatched Data for Individuals Prescribed Nitrofuranoin";
 proc sgplot data=tmp1.uti_dataset_nitro;
@@ -325,24 +363,24 @@ proc sgplot data=tmp1.uti_matched_nitro;
 run;
 title;
 
-/* 23. Run linear regression on research question 3 - days of Nitrofurantoin prescribed */
+/* 25. Run linear regression on research question 3 - days of Nitrofurantoin prescribed */
 
 /* Unmatched Data */
-proc glm data=tmp1.uti_dataset_nitro;
+proc genmod data=tmp1.uti_dataset_nitro;
 	class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL (ref='0') &hsda_vars &DNBTIPPE_vars;
-	model Days_Supply_Dispensed=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY prior_rx_count wgtccup &hsda_vars prop_virtual / solution;
-	lsmeans VIRTUAL / pdiff=all cl;
+	model Days_Supply_Dispensed=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY prior_rx_count wgtccup &hsda_vars prop_virtual / dist=normal link=identity;;
+	repeated subject=studyid(pracnum) / corr=exch corrw;
 run;
 
 /* Matched Data */
 proc glm data=tmp1.uti_matched_nitro;
 	class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL (ref='0') &hsda_vars &DNBTIPPE_vars;
-	model Days_Supply_Dispensed=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY prior_rx_count wgtccup &hsda_vars prop_virtual / solution;
-	lsmeans VIRTUAL / pdiff=all cl;
+	model Days_Supply_Dispensed=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY prior_rx_count wgtccup &hsda_vars prop_virtual / dist=normal link=identity;;
+	repeated subject=studyid(pracnum) / corr=exch corrw;
 run;
 
 
-/* 24. Sensitivity analysis with IPSW */
+/* 26. Sensitivity analysis with IPSW */
 
 /* Create the Propensity Scores */
 
@@ -366,15 +404,15 @@ proc sql;
   from ps_weight_nitro group by VIRTUAL;
 quit;
 
-/* 25. Run the model */
-proc glm data=ps_weight_adj_nitro;
+/* 27. Run the model */
+proc genmod data=ps_weight_adj_nitro;
   class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL (REF='0') BROAD &hsda_vars &DNBTIPPE_vars;
-  model Days_Supply_Dispensed=VIRTUAL Sex prior_rx_flag prior_visit_flag prior_rx_count MRP DOBYYYY wgtccup &hsda_vars prop_virtual / solution;
-  weight ps_weight_adj;_nitro
-  lsmeans VIRTUAL / pdiff=all cl;
+  model Days_Supply_Dispensed=VIRTUAL Sex prior_rx_flag prior_visit_flag prior_rx_count MRP DOBYYYY wgtccup &hsda_vars prop_virtual / / dist=normal link=identity;
+  weight ps_weight_adj;_nitro;
+  repeated subject=studyid(pracnum) / corr=exch corrw;
 run;
 
-/* 26. Visualize the distribution of the adjusted inverse propensity score */
+/* 28. Visualize the distribution of the adjusted inverse propensity score */
 title 'Propensity Score Distribution of Inverse PS Weighted Data for Individuals Prescribed an Nitrofurantoin';
   proc sgplot data=ps_weight_adj_nitro;
 	histogram ps_weight_adj_nitro / group=VIRTUAL transparency=0.5;
@@ -383,3 +421,20 @@ title 'Propensity Score Distribution of Inverse PS Weighted Data for Individuals
 	yaxis label="frequency";
 run;
 title;
+
+/* 29 Estimate the predicted days of nitrofurantoin dispensed for the average observation in the dataset */
+
+proc genmod data=tmp1.uti_matched_nitro;
+	class Sex pracnum studyid prior_rx_flag(REF='0') prior_visit_flag(REF='0') MRP(REF='0') VIRTUAL(REF='0') 
+	hsda1(REF='0') hsda2(REF='0') hsda3(REF='0') hsda4(REF='0') hsda5(REF='0') hsda6(REF='0') hsda7(REF='0') hsda8(REF='0')
+	hsda9(REF='0') hsda10(REF='0') hsda11(REF='0') hsda12(REF='0') hsda13(REF='0') hsda14(REF='0') hsda15(REF='0') hsda16(REF='0')
+	DNBTIPPE1(REF='0') DNBTIPPE2(REF='0') DNBTIPPE3(REF='0') DNBTIPPE4(REF='0') DNBTIPPE5(REF='0') DNBTIPPE6(REF='0')
+	DNBTIPPE7(REF='0') DNBTIPPE8(REF='0') DNBTIPPE9(REF='0') DNBTIPPE10(REF='0') DNBTIPPE11(REF='0');
+	model Days_Supply_Dispensed=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY prior_rx_count wgtccup &hsda_vars prop_virtual / dist=normal link=identity;
+	store out=genmod_model3;
+	repeated subject=studyid(pracnum) / corr=exch corrw;
+run;
+
+proc plm restore=genmod_model3;
+score data=predict_data out=predicted_probs predicted / ilink;
+run;
