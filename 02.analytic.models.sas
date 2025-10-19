@@ -107,7 +107,7 @@ title;
 
 proc genmod data=tmp1.uti_dataset_overall;
 	class Sex pracnum studyid prior_rx_flag prior_visit_flag MRP VIRTUAL(REF='0') &hsda_vars &DNBTIPPE_vars;
-	model ANTIBIOTIC (event='1')=VIRTUAL Sex prior_visit_flag MRP DOBYYYY prior_rx_mod wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual / dist=bin link=logit;
+	model ANTIBIOTIC (event='1')=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual / dist=bin link=logit;
 	repeated subject=studyid(pracnum) / corr=exch corrw;
 run;
 
@@ -116,7 +116,7 @@ run;
 
 proc logistic data=tmp1.uti_matched;
 	class Sex pracnum studyid prior_rx_flag prior_visit_flag MRP VIRTUAL(REF='0') &hsda_vars &DNBTIPPE_vars;
-	model ANTIBIOTIC (event='1')=VIRTUAL Sex prior_visit_flag MRP DOBYYYY prior_rx_mod wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual / dist=bin link=logit;
+	model ANTIBIOTIC (event='1')=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual/ dist=bin link=logit;
 	repeated subject=studyid(pracnum) / corr=exch corrw;
 run;
 
@@ -127,7 +127,7 @@ run;
 
 proc logistic data=tmp1.uti_dataset_overall;
   class Sex (missing) prior_rx_flag (missing) prior_visit_flag(missing) MRP(missing) VIRTUAL(missing) &hsda_vars(missing) &DNBTIPPE_vars(missing);
-  model VIRTUAL(REF='0') = Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup prior_rx_count &hsda_vars &DNBTIPPE_vars prop_virtual
+  model VIRTUAL(REF='0') = Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual
   /link=glogit rsquare;
   output out = ps_weight pred = ps;
 run;
@@ -242,14 +242,14 @@ title;
 /* Unmatched Data */
 proc genmod data=tmp1.uti_dataset_anti;
 	class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL (ref='0') BROAD &hsda_vars &DNBTIPPE_vars;
-	model BROAD (event='1')=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP prior_rx_count DOBYYYY &DNBTIPPE_vars prop_virtual / dist=bin link=logit;
+	model BROAD (event='1')=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual / dist=bin link=logit;
 	repeated subject=studyid(pracnum) / corr=exch corrw;
 run;
 
 /* Matched Data */
 proc genmod data=tmp1.uti_matched_anti;
 	class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL (ref='0') BROAD &hsda_vars &DNBTIPPE_vars;
-	model BROAD (event='1')=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP prior_rx_count DOBYYYY &DNBTIPPE_vars prop_virtual  dist=bin link=logit;
+	model BROAD (event='1')=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual / dist=bin link=logit;
 	repeated subject=studyid(pracnum) / corr=exch corrw;
 run;
 
@@ -259,7 +259,7 @@ run;
 
 proc logistic data=tmp1.uti_dataset_anti;
   class Sex prior_rx_flag prior_visit_flag MRP BROAD VIRTUAL (ref='0') &hsda_vars &DNBTIPPE_vars;
-  model VIRTUAL = Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup prior_rx_count &hsda_vars &DNBTIPPE_vars prop_virtual
+  model VIRTUAL = Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual
   /link=glogit rsquare;
   output out = ps_anti pred = ps;
 run;
@@ -280,8 +280,7 @@ quit;
 /* 19. Run the model */
 proc genmod data=ps_weight_adj_anti;
   class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL(ref='0') BROAD &hsda_vars &DNBTIPPE_vars;
-  model BROAD(event='1') = VIRTUAL Sex prior_rx_flag prior_visit_flag MRP prior_rx_count DOBYYYY 
-                           wgtccup &DNBTIPPE_vars prop_virtual / dist=bin link=logit;
+  model BROAD(event='1') = VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual / dist=bin link=logit;
   weight ps_weight_adj_anti;
   repeated subject=studyid / corr=exch;
 run;
@@ -368,14 +367,14 @@ title;
 /* Unmatched Data */
 proc genmod data=tmp1.uti_dataset_nitro;
 	class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL (ref='0') &hsda_vars &DNBTIPPE_vars;
-	model Days_Supply_Dispensed=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY prior_rx_count wgtccup &hsda_vars prop_virtual / dist=normal link=identity;;
+	model Days_Supply_Dispensed=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual / dist=normal link=identity;;
 	repeated subject=studyid(pracnum) / corr=exch corrw;
 run;
 
 /* Matched Data */
 proc glm data=tmp1.uti_matched_nitro;
 	class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL (ref='0') &hsda_vars &DNBTIPPE_vars;
-	model Days_Supply_Dispensed=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY prior_rx_count wgtccup &hsda_vars prop_virtual / dist=normal link=identity;;
+	model Days_Supply_Dispensed=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual / dist=normal link=identity;;
 	repeated subject=studyid(pracnum) / corr=exch corrw;
 run;
 
@@ -407,7 +406,7 @@ quit;
 /* 27. Run the model */
 proc genmod data=ps_weight_adj_nitro;
   class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL (REF='0') BROAD &hsda_vars &DNBTIPPE_vars;
-  model Days_Supply_Dispensed=VIRTUAL Sex prior_rx_flag prior_visit_flag prior_rx_count MRP DOBYYYY wgtccup &hsda_vars prop_virtual / / dist=normal link=identity;
+  model Days_Supply_Dispensed=VIRTUAL SSex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual / / dist=normal link=identity;
   weight ps_weight_adj;_nitro;
   repeated subject=studyid(pracnum) / corr=exch corrw;
 run;
