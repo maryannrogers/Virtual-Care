@@ -114,7 +114,7 @@ run;
 
 /* Matched data */
 
-proc logistic data=tmp1.uti_matched;
+proc genmod data=tmp1.uti_matched;
 	class Sex pracnum studyid prior_rx_flag prior_visit_flag MRP VIRTUAL(REF='0') &hsda_vars &DNBTIPPE_vars;
 	model ANTIBIOTIC (event='1')=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual/ dist=bin link=logit;
 	repeated subject=studyid(pracnum) / corr=exch corrw;
@@ -365,7 +365,7 @@ title;
 /* 25. Run linear regression on research question 3 - days of Nitrofurantoin prescribed */
 
 /* Unmatched Data */
-proc genmod data=tmp1.uti_dataset_nitro;
+proc glm data=tmp1.uti_dataset_nitro;
 	class Sex prior_rx_flag prior_visit_flag MRP VIRTUAL (ref='0') &hsda_vars &DNBTIPPE_vars;
 	model Days_Supply_Dispensed=VIRTUAL Sex prior_rx_flag prior_visit_flag MRP DOBYYYY wgtccup &hsda_vars &DNBTIPPE_vars prop_virtual / dist=normal link=identity;;
 	repeated subject=studyid(pracnum) / corr=exch corrw;
