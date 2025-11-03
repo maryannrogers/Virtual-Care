@@ -675,7 +675,7 @@ run;
 	dbms=csv;
    run;
 
-/* Repeat all steps including optional step 10 (but excluding step 17) to create the dataset 
+/* Repeat all steps including optional step 12 (but excluding step 19) to create the dataset 
    for Research Question 2: What is the likelihood of a broad-spectrum antibiotic being 
    prescribed in virtual vs. in-person visits?
    This dataset should be named: uti_dataset_anti.
@@ -690,7 +690,7 @@ run;
 	dbms=csv;
    run;
 
-/* Repeat all steps including optional steps 10 and 17 to create the dataset 
+/* Repeat all steps including optional steps 12 and 19 to create the dataset 
    for Research Question 3: Do virtual visits impact the number of days of 
    Nitrofurantoin prescribed for UTI?
    This dataset should be named: uti_dataset_nitro.
